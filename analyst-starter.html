@@ -1,0 +1,2115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equity Research Tool</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f25; --panel2: #23272e; --line: #2e333c;
+    --fg: #e6e8eb; --muted: #9aa2ad; --accent: #4ec9b0; --accent2: #5aa9e6;
+    --warn: #e0b341; --bad: #e06c6c; --good: #6cc77f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  header { padding: 22px 28px 14px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 4px; font-size: 21px; letter-spacing: -0.2px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  main { padding: 20px 28px 80px; max-width: 1500px; }
+  section { margin-bottom: 26px; }
+  h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.9px;
+    color: var(--muted); margin: 0 0 10px; font-weight: 600;
+  }
+
+  #drop {
+    border: 2px dashed var(--line); border-radius: 10px; padding: 34px 20px;
+    text-align: center; background: var(--panel); cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.over { border-color: var(--accent); background: #1d2a28; }
+  #drop b { display: block; font-size: 16px; margin-bottom: 6px; }
+  #drop span { color: var(--muted); font-size: 13px; }
+
+  #log {
+    background: #0f1114; border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 14px; font: 12px/1.7 Consolas, monospace;
+    max-height: 190px; overflow: auto; white-space: pre-wrap; color: var(--muted);
+  }
+  #log .ok { color: var(--good); } #log .warn { color: var(--warn); }
+  #log .bad { color: var(--bad); }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  input, select {
+    background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 5px; padding: 6px 9px; font: inherit; font-size: 13px;
+  }
+  input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  input.num { text-align: right; font-family: Consolas, monospace; font-size: 12.5px; width: 118px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  th {
+    position: sticky; top: 0; background: var(--panel2); color: var(--muted);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .6px; z-index: 2;
+  }
+  td.r, th.r { text-align: right; }
+  tr.sub td { font-weight: 600; background: #20242b; }
+  tr.head td {
+    font-weight: 600; color: var(--accent2); background: #1a1d22;
+    text-transform: uppercase; font-size: 11px; letter-spacing: .7px;
+  }
+  .src { color: var(--muted); font-size: 11.5px; }
+  .pill {
+    display: inline-block; padding: 1px 7px; border-radius: 9px;
+    font-size: 10.5px; background: #2a3a36; color: var(--accent);
+  }
+  .pill.none { background: #33292a; color: var(--bad); }
+  .wrap { max-height: 560px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+
+  button {
+    background: var(--accent); color: #0d1110; border: 0; border-radius: 6px;
+    padding: 10px 20px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { background: #33383f; color: #6b7280; cursor: not-allowed; }
+  button.ghost { background: var(--panel2); color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+  .hidden { display: none; }
+  .flag { padding: 7px 10px; border-left: 3px solid var(--line); margin-bottom: 7px; background: var(--panel2); border-radius: 0 5px 5px 0; }
+  .flag.alert { border-left-color: var(--bad); }
+  .flag.watch { border-left-color: var(--warn); }
+  .flag b { display: block; font-size: 12.5px; }
+  .flag span { color: var(--muted); font-size: 12px; }
+
+  .val-groups { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
+  .val-groups .panel { flex: 1 1 300px; }
+  .val-groups h3 { margin: 0 0 10px; font-size: 12px; color: var(--accent2); text-transform: uppercase; letter-spacing: .6px; }
+  .val-groups .grid { gap: 10px 14px; }
+  .val-groups input.num { width: 96px; }
+  .val-cols { display: flex; flex-wrap: wrap; gap: 14px; }
+  .val-cols > div { flex: 1 1 420px; min-width: 0; }
+  .val-cols .wrap { max-height: none; }
+  .headline { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; min-width: 150px; flex: 1 1 150px; }
+  .stat small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+  .stat b { font: 600 19px Consolas, monospace; }
+  .stat.up b { color: var(--good); } .stat.down b { color: var(--bad); }
+  td.base { outline: 1px solid var(--accent); font-weight: 700; color: var(--accent); }
+  td.mono { font-family: Consolas, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Equity Research Tool</h1>
+  <div class="sub">
+    Drop an annual report PDF &rarr; check what it found &rarr; value it &rarr; export a formatted model workbook.
+    Everything runs in this browser. No API key, no install, nothing uploaded.
+  </div>
+</header>
+
+<main>
+  <section>
+    <div id="drop">
+      <b>Drop annual report PDF(s) here</b>
+      <span>or click to choose &nbsp;·&nbsp; 10-K, 20-F, Appendix 4E, ASX/NZX or IFRS annual report</span>
+      <input id="file" type="file" accept="application/pdf" multiple class="hidden">
+    </div>
+    <p class="hint" id="libnote">Loading PDF and Excel libraries&hellip;</p>
+  </section>
+
+  <section>
+    <h2>Progress</h2>
+    <div id="log">Waiting for a file.</div>
+  </section>
+
+  <section id="metaSection" class="hidden">
+    <h2>What it detected &mdash; correct anything wrong</h2>
+    <div class="panel grid" id="metaGrid"></div>
+    <p class="hint">
+      Units and currency scale and label every number in the workbook, so they are
+      worth a glance. Period labels become the column headers.
+    </p>
+  </section>
+
+  <section id="reviewSection" class="hidden">
+    <h2>Extracted figures &mdash; edit any cell</h2>
+    <div class="row" style="margin-bottom:10px">
+      <button class="ghost" id="toggleBlank">Hide empty rows</button>
+      <span class="hint" id="matchCount"></span>
+    </div>
+    <div class="wrap"><table id="review"></table></div>
+  </section>
+
+  <section id="unmatchedSection" class="hidden">
+    <h2>Lines it could not map &mdash; assign any that matter</h2>
+    <p class="hint" style="margin-top:0">
+      Everything the parser read but did not recognise. Pick a line item from the
+      dropdown to pull it into the model.
+    </p>
+    <div class="wrap" style="max-height:340px"><table id="unmatched"></table></div>
+  </section>
+
+  <section id="ratioSection" class="hidden">
+    <h2>Ratios</h2>
+    <div class="wrap" style="max-height:480px"><table id="ratios"></table></div>
+  </section>
+
+  <section id="valSection" class="hidden">
+    <h2>Valuation &mdash; multiples, WACC and DCF</h2>
+    <div class="val-groups" id="valInputs"></div>
+    <div id="valOutputs"></div>
+    <p class="hint">
+      Blank inputs use the greyed-out default shown in the box. Statement figures are in the
+      filing's units; share price is per share in the presentation currency. FCF is operating
+      cash flow less all-in capex, as in the ratios above &mdash; close to unlevered FCF for a
+      low-debt company, but add back after-tax interest for a leveraged one. Net debt includes
+      lease liabilities.
+    </p>
+  </section>
+
+  <section id="flagSection" class="hidden">
+    <h2>Checks &amp; flags</h2>
+    <div id="flags"></div>
+  </section>
+
+  <section id="exportSection" class="hidden">
+    <div class="row">
+      <button id="export">Download .xlsx</button>
+      <button class="ghost" id="saveSession">Save session (.json)</button>
+      <button class="ghost" id="loadSessionBtn">Load session</button>
+      <input id="loadSession" type="file" accept="application/json,.json" class="hidden">
+      <button class="ghost" id="reset">Start over</button>
+    </div>
+    <p class="hint">
+      Your edits are kept in this browser automatically, so closing the tab and
+      reopening the file offers to restore them. <b>Save session</b> writes a
+      <code>.json</code> you can keep alongside the PDF or move between machines —
+      use it if you clear browser data or want a checkpoint before changing things.
+    </p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script>
+"use strict";
+
+/* ===================================================================
+   Equity Research Tool -- browser build
+
+   Parses the primary financial statements out of an annual report PDF
+   with no LLM and no API key, then exports a formatted workbook.
+
+   The parsing rules here were validated against Xero's FY26 annual
+   report before being written; the two that matter most:
+
+   1. TAKE THE LAST N NUMBERS ON A ROW, not the first. Statements carry
+      a "NOTES" column, so "Total operating revenue  4  2,753,081
+      2,102,652" has three numbers and only the last two are periods.
+
+   2. CAPEX IS NOT JUST PP&E. For a software company, capitalised
+      development costs dwarf it -- for Xero FY26, 405,829 vs 9,398.
+      Free cash flow computed on PP&E alone overstates by 84%.
+
+   Heuristics will never match an LLM on an arbitrary filing, which is
+   why every number is editable before export. The tool does the typing;
+   you confirm the figures.
+   =================================================================== */
+
+/* ---------- canonical schema: fixed row order, as in a sell-side model ---------- */
+const SCHEMA = {
+  income_statement: [
+    ['head', null, 'Revenue'],
+    ['item', 'total_revenue', 'Total Revenue'],
+    ['item', 'cost_of_revenue', 'Cost of Revenue'],
+    ['sub',  'gross_profit', 'Gross Profit'],
+    ['head', null, 'Operating Expenses'],
+    ['item', 'research_development', 'Research & Development'],
+    ['item', 'sales_marketing', 'Sales & Marketing'],
+    ['item', 'general_admin', 'General & Administrative'],
+    ['item', 'other_opex', 'Other Operating Expenses'],
+    ['sub',  'total_opex', 'Total Operating Expenses'],
+    ['head', null, 'Earnings'],
+    ['sub',  'ebitda', 'EBITDA'],
+    ['item', 'd_and_a', 'Depreciation & Amortisation'],
+    ['item', 'operating_income', 'Operating Income'],
+    ['sub',  'ebit', 'EBIT'],
+    ['item', 'finance_income', 'Finance Income'],
+    ['item', 'finance_expense', 'Finance Expense'],
+    ['item', 'other_income', 'Other Income / (Expense)'],
+    ['sub',  'pbt', 'Profit Before Tax'],
+    ['item', 'income_tax', 'Income Tax'],
+    ['sub',  'npat', 'NPAT'],
+    ['head', null, 'Per Share'],
+    ['item', 'eps_basic', 'EPS (basic)'],
+    ['item', 'eps_diluted', 'EPS (diluted)'],
+    ['item', 'dps', 'DPS'],
+    ['item', 'shares_basic', 'Weighted avg shares (basic)'],
+    ['item', 'shares_diluted', 'Weighted avg shares (diluted)']
+  ],
+  balance_sheet: [
+    ['head', null, 'Current Assets'],
+    ['item', 'cash', 'Cash & equivalents'],
+    ['item', 'st_investments', 'Short-term investments'],
+    ['item', 'receivables', 'Accounts receivable'],
+    ['item', 'inventory', 'Inventory'],
+    ['item', 'prepaids', 'Prepaids'],
+    ['item', 'other_current_assets', 'Other current assets'],
+    ['sub',  'total_current_assets', 'Total Current Assets'],
+    ['head', null, 'Non-Current Assets'],
+    ['item', 'ppe', 'PP&E'],
+    ['item', 'intangibles', 'Intangibles (ex-goodwill)'],
+    ['item', 'goodwill', 'Goodwill'],
+    ['item', 'rou_asset', 'Right-of-use asset'],
+    ['item', 'deferred_tax_assets', 'Deferred tax assets'],
+    ['item', 'other_non_current_assets', 'Other non-current assets'],
+    ['sub',  'total_non_current_assets', 'Total Non-Current Assets'],
+    ['sub',  'total_assets', 'Total Assets'],
+    ['head', null, 'Current Liabilities'],
+    ['item', 'payables', 'Accounts payable'],
+    ['item', 'accrued', 'Accrued expenses'],
+    ['item', 'st_debt', 'Short-term debt'],
+    ['item', 'current_lease', 'Current lease liabilities'],
+    ['item', 'deferred_revenue_current', 'Deferred revenue (current)'],
+    ['item', 'other_current_liabilities', 'Other current liabilities'],
+    ['sub',  'total_current_liabilities', 'Total Current Liabilities'],
+    ['head', null, 'Non-Current Liabilities'],
+    ['item', 'lt_debt', 'Long-term debt'],
+    ['item', 'lt_lease', 'Long-term lease liabilities'],
+    ['item', 'deferred_revenue_nc', 'Deferred revenue (non-current)'],
+    ['item', 'deferred_tax_liabilities', 'Deferred tax liabilities'],
+    ['item', 'other_non_current_liabilities', 'Other non-current liabilities'],
+    ['sub',  'total_non_current_liabilities', 'Total Non-Current Liabilities'],
+    ['sub',  'total_liabilities', 'Total Liabilities'],
+    ['head', null, 'Equity'],
+    ['item', 'common_stock', 'Share capital'],
+    ['item', 'retained_earnings', 'Retained earnings'],
+    ['item', 'aoci', 'Reserves / AOCI'],
+    ['item', 'minority_interest', 'Minority interest'],
+    ['sub',  'total_equity', 'Total Equity'],
+    ['check', 'bs_check', 'BS check (Assets - Liab - Equity)']
+  ],
+  cash_flow: [
+    /* Both presentation methods are represented. A direct-method statement
+       (Xero FY26) starts from customer receipts and has no profit/D&A
+       reconciliation at all; an indirect-method one starts from profit. Rows
+       for the method the filing did not use simply stay blank. */
+    ['head', null, 'Operating (direct method)'],
+    ['item', 'cf_receipts', 'Receipts from customers'],
+    ['item', 'cf_payments', 'Payments to suppliers and employees'],
+    ['item', 'cf_interest_received', 'Interest received'],
+    ['head', null, 'Operating (indirect method)'],
+    ['item', 'cf_npat', 'Profit for the year'],
+    ['item', 'cf_d_and_a', 'Depreciation & amortisation'],
+    ['item', 'cf_sbc', 'Share-based payments'],
+    ['item', 'cf_working_capital', 'Change in working capital'],
+    ['item', 'cf_interest_paid', 'Interest paid'],
+    ['item', 'cf_tax_paid', 'Income tax paid'],
+    ['sub',  'cash_from_operations', 'Cash from Operations'],
+    ['head', null, 'Investing'],
+    ['item', 'capex', 'Purchase of PP&E'],
+    ['item', 'capitalised_development', 'Capitalised development costs'],
+    ['item', 'capitalised_contract_costs', 'Capitalised contract costs'],
+    ['item', 'cf_acquisitions', 'Acquisitions'],
+    ['item', 'cf_disposals', 'Disposals'],
+    ['sub',  'cash_from_investing', 'Cash from Investing'],
+    ['head', null, 'Financing'],
+    ['item', 'cf_equity_issued', 'Equity issued'],
+    ['item', 'cf_buybacks', 'Buybacks'],
+    ['item', 'cf_debt_drawn', 'Debt drawn'],
+    ['item', 'cf_debt_repaid', 'Debt repaid'],
+    ['item', 'cf_dividends', 'Dividends paid'],
+    ['item', 'cf_lease_payments', 'Lease payments'],
+    ['sub',  'cash_from_financing', 'Cash from Financing'],
+    ['head', null, 'Reconciliation'],
+    ['item', 'cf_fx', 'FX effect on cash'],
+    ['sub',  'net_change_in_cash', 'Net change in cash'],
+    ['item', 'cash_beginning', 'Cash at beginning'],
+    ['sub',  'cash_end', 'Cash at end']
+  ]
+};
+
+const STATEMENT_TITLES = {
+  income_statement: 'Income Statement',
+  balance_sheet: 'Balance Sheet',
+  cash_flow: 'Cash Flow'
+};
+
+/* Keys normally printed negative. Used only to flag a suspicious sign --
+   values are never silently flipped, because the filing's own convention
+   is what the analyst needs to see. */
+const EXPENSE_KEYS = new Set([
+  'cost_of_revenue','research_development','sales_marketing','general_admin',
+  'other_opex','total_opex','d_and_a','income_tax','finance_expense','capex',
+  'capitalised_development','capitalised_contract_costs','cf_interest_paid',
+  'cf_tax_paid','cf_dividends','cf_buybacks','cf_debt_repaid','cf_lease_payments'
+]);
+
+const PER_SHARE_KEYS = new Set(['eps_basic','eps_diluted','dps']);
+const SHARE_COUNT_KEYS = new Set(['shares_basic','shares_diluted']);
+
+/* ---------- label dictionary ----------
+   Order matters: the first matching key wins, so specific wording is
+   listed before generic. Validated against Xero FY26; wording from US
+   GAAP and other IFRS filers added alongside. */
+const SYNONYMS = [
+  ['total_revenue', [/^total (?:operating )?revenue$/, /^total revenues?$/, /^revenues?$/,
+                     /^total revenue and other income$/, /^total net revenues?$/]],
+  ['cost_of_revenue', [/^(?:total )?cost of (?:revenue|revenues|sales|services)$/,
+                       /^cost of goods sold$/]],
+  ['gross_profit', [/^gross (?:profit|margin)$/]],
+  ['research_development', [/^product design and development$/,
+                            /^research and development$/, /^r&d expenses?$/,
+                            /^technology and development$/]],
+  ['sales_marketing', [/^sales and marketing$/, /^selling and marketing$/,
+                       /^marketing and sales$/]],
+  ['general_admin', [/^general and admin(?:istration|istrative)$/,
+                     /^administrative expenses$/, /^corporate costs$/,
+                     /^selling,? general and administrative$/]],
+  ['other_opex', [/^other operating expenses?$/, /^acquisition.related costs$/,
+                  /^restructuring/, /^impairment/]],
+  ['total_opex', [/^total operating expenses$/, /^total expenses$/]],
+  ['ebitda', [/^ebitda$/, /^adjusted ebitda$/]],
+  ['d_and_a', [/^depreciation and amorti[sz]ation$/, /^depreciation & amorti[sz]ation$/,
+               /^depreciation and amorti[sz]ation expense$/]],
+  /* EBIT: the explicit wording first. Falling back to operating income is
+     deliberate but ranked lower, because on a filing that reports both (Xero
+     FY26: operating income 316,121 vs EBIT 406,751) the labelled EBIT is the
+     one the ratio pack should use. */
+  ['ebit', [/^earnings before interest and tax(?:es)?$/, /^ebit$/,
+            /^(?:profit|income) from operations$/, /^operating (?:income|profit)$/]],
+  ['operating_income', [/^operating (?:income|profit)$/]],
+  ['finance_income', [/^finance income$/, /^interest income$/, /^investment income$/]],
+  ['finance_expense', [/^finance (?:expense|costs?)$/, /^interest expense$/]],
+  ['other_income', [/^other income(?: \(expense\))?,? net$/, /^other (?:income|expenses?)$/]],
+  ['pbt', [/^net (?:profit|income|loss) before (?:income )?tax(?:es)?$/,
+           /^(?:profit|income|loss|earnings) before (?:income )?tax(?:es)?$/]],
+  ['income_tax', [/^income tax (?:expense|benefit|charge)$/, /^tax (?:expense|charge)$/,
+                  /^provision for income taxes$/, /^taxation$/]],
+  ['npat', [/^net (?:profit|income|loss) after tax$/,
+            /^(?:net )?(?:profit|income|loss) for the (?:year|period)$/,
+            /^net (?:income|loss)$/,
+            /^(?:profit|loss) attributable to (?:owners|shareholders|equity holders)/]],
+  ['eps_basic', [/^basic (?:net )?(?:earnings|income|loss|profit).*per share/,
+                 /^earnings per share.*basic/]],
+  ['eps_diluted', [/^diluted (?:net )?(?:earnings|income|loss|profit).*per share/,
+                   /^earnings per share.*diluted/]],
+  ['dps', [/^dividends? (?:declared )?per share/]],
+  ['shares_basic', [/^(?:weighted average )?(?:number of )?shares.*basic/,
+                    /^basic weighted average/]],
+  ['shares_diluted', [/^(?:weighted average )?(?:number of )?shares.*diluted/,
+                      /^diluted weighted average/]],
+
+  ['cash', [/^cash and cash equivalents$/, /^cash and bank balances$/, /^cash$/]],
+  ['st_investments', [/^short.term deposits$/, /^short.term investments$/,
+                      /^marketable securities$/, /^term deposits$/]],
+  ['receivables', [/^trade and other receivables$/, /^trade receivables$/,
+                   /^accounts receivable,? net$/, /^accounts receivable$/]],
+  ['inventory', [/^invent(?:ory|ories),?( net)?$/]],
+  ['prepaids', [/^prepa(?:yments|id expenses|ids)/]],
+  ['other_current_assets', [/^other current assets$/, /^income tax receivable$/]],
+  ['total_current_assets', [/^total current assets$/]],
+  ['ppe', [/^property,? plant and equipment/, /^property and equipment/]],
+  ['intangibles', [/^intangible assets/, /^other intangible assets/]],
+  ['goodwill', [/^goodwill$/]],
+  ['rou_asset', [/^right.of.use assets?$/, /^operating lease right.of.use assets?$/]],
+  ['deferred_tax_assets', [/^deferred tax assets?$/]],
+  ['other_non_current_assets', [/^other non.current assets$/, /^other assets$/,
+                                /^investments in financial assets$/]],
+  ['total_non_current_assets', [/^total non.current assets$/]],
+  ['total_assets', [/^total assets$/]],
+  ['payables', [/^trade and other payables$/, /^trade payables$/,
+                /^accounts payable$/, /^accounts payable and accrued/]],
+  ['accrued', [/^accrued (?:expenses|liabilities)$/, /^employee entitlements$/]],
+  ['st_debt', [/^(?:current )?borrowings.*current$/, /^short.term (?:debt|borrowings)$/,
+               /^current portion of (?:long.term )?(?:debt|borrowings)$/]],
+  ['current_lease', [/^(?:current )?lease liabilit(?:y|ies).*current$/,
+                     /^current portion of lease liabilities$/]],
+  ['deferred_revenue_current', [/^(?:deferred|unearned) revenue$/,
+                                /^contract liabilit(?:y|ies)$/]],
+  ['other_current_liabilities', [/^other current liabilities$/, /^income tax payable$/]],
+  ['total_current_liabilities', [/^total current liabilities$/]],
+  ['lt_debt', [/^borrowings$/, /^long.term (?:debt|borrowings)$/,
+               /^interest.bearing liabilities$/, /^convertible notes$/]],
+  ['lt_lease', [/^lease liabilit(?:y|ies)$/, /^non.current lease liabilities$/]],
+  ['deferred_revenue_nc', [/^(?:deferred|unearned) revenue.*non.current$/]],
+  ['deferred_tax_liabilities', [/^deferred tax liabilit(?:y|ies)$/]],
+  ['other_non_current_liabilities', [/^other non.current liabilities$/]],
+  ['total_non_current_liabilities', [/^total non.current liabilities$/]],
+  ['total_liabilities', [/^total liabilities$/]],
+  ['common_stock', [/^share capital$/, /^common stock/, /^contributed equity$/,
+                    /^ordinary shares$/]],
+  ['retained_earnings', [/^retained earnings/, /^accumulated (?:deficit|losses)/]],
+  ['aoci', [/^reserves$/, /^accumulated other comprehensive/, /^other reserves$/]],
+  ['minority_interest', [/^non.controlling interests?$/, /^minority interests?$/]],
+  ['total_equity', [/^total equity$/, /^total shareholders.? equity$/,
+                    /^total stockholders.? equity$/]],
+
+  ['cf_receipts', [/^receipts from customers$/, /^cash receipts from customers$/]],
+  ['cf_payments', [/^payments to suppliers and employees$/,
+                   /^cash paid to suppliers and employees$/]],
+  ['cf_interest_received', [/^interest received$/]],
+  ['cf_npat', [/^(?:net )?(?:profit|income|loss) for the (?:year|period)$/,
+               /^net (?:income|loss)$/]],
+  ['cf_d_and_a', [/^depreciation and amorti[sz]ation$/]],
+  ['cf_sbc', [/^share.based payments?/, /^stock.based compensation/]],
+  ['cf_working_capital', [/^(?:net )?changes? in working capital$/,
+                          /^movements? in working capital$/]],
+  ['cf_interest_paid', [/^interest paid$/]],
+  ['cf_tax_paid', [/^income tax(?:es)? paid$/, /^taxes paid$/]],
+  ['cash_from_operations', [/^net cash (?:flows?|inflows?|outflows?)?\s*(?:used in |from |provided by |generated from )?operating activities$/,
+                            /^cash (?:flows? )?from operating activities$/]],
+  ['capex', [/^purchases? of property,? plant and equipment$/,
+             /^purchases? of property and equipment$/,
+             /^acquisitions? of property,? plant and equipment$/,
+             /^capital expenditure$/]],
+  ['capitalised_development', [/^capitali[sz]ed (?:software )?development costs?$/,
+                               /^(?:additions to|investment in) (?:capitali[sz]ed )?software/,
+                               /^capitali[sz]ation of (?:software|development)/]],
+  ['capitalised_contract_costs', [/^capitali[sz]ed contract (?:acquisition )?costs?$/]],
+  ['cf_acquisitions', [/^business acquisitions/, /^acquisition of (?:subsidiar|business)/,
+                       /^payments? for acquisitions?/]],
+  ['cf_disposals', [/^proceeds from (?:sale|disposal)/]],
+  ['cash_from_investing', [/^net cash (?:flows?|inflows?|outflows?)?\s*(?:used in |from |provided by )?investing activities$/,
+                           /^cash (?:flows? )?(?:used in|from) investing activities$/]],
+  ['cf_equity_issued', [/^(?:proceeds from )?(?:share|stock) (?:options )?(?:issue|exercised|issuance)/,
+                        /^issue of shares/, /^proceeds from issue/]],
+  ['cf_buybacks', [/^(?:share|stock) (?:re)?purchases?/, /^buy.?backs?$/,
+                   /^repurchases? of (?:common stock|ordinary shares)/]],
+  ['cf_debt_drawn', [/^(?:proceeds from )?(?:borrowings|drawdown)/,
+                     /^proceeds from (?:issuance of )?debt/]],
+  ['cf_debt_repaid', [/^repayments? of (?:borrowings|debt|loans)/]],
+  ['cf_dividends', [/^dividends? paid/]],
+  ['cf_lease_payments', [/^payments? of lease liabilit(?:y|ies)$/,
+                         /^principal payments? (?:on|of) lease/]],
+  ['cf_fx', [/^(?:net )?(?:effect|impact) of (?:foreign )?exchange/,
+             /^foreign exchange (?:gains?|losses?|differences)/]],
+  ['net_change_in_cash', [/^net (?:increase|decrease|change) in cash/]],
+  ['cash_beginning', [/^cash and cash equivalents at (?:the )?(?:beginning|start)/,
+                      /^cash at (?:the )?(?:beginning|start)/]],
+  ['cash_end', [/^cash and cash equivalents at (?:the )?end/, /^cash at (?:the )?end/]]
+];
+
+/* Which statement each key belongs to, for routing parsed rows. */
+const KEY_STATEMENT = {};
+for (const [statement, rows] of Object.entries(SCHEMA)) {
+  for (const [, key] of rows) if (key) KEY_STATEMENT[key] = statement;
+}
+
+/* ---------- number and line parsing (validated against Xero FY26) ---------- */
+const NUM_RE = /\(?\s*[-–—]?\s*[$€£¥]?\s*\d[\d,]*(?:\.\d+)?\s*\)?%?/g;
+
+/* A nil shown as an en/em dash must still occupy its column. Statements write
+   "Funds receivable  10  580,157  —" for an item that was nil last year; if
+   the dash is not tokenised, the last-N rule reads [10, 580,157] and files the
+   NOTE REFERENCE as a period value. Matching dashes as null cells keeps the
+   columns aligned. Number alternative first, so "-123" stays a number. */
+const CELL_RE = new RegExp(
+  NUM_RE.source + '|[\\u2013\\u2014]|(?<=\\s)-(?=\\s|$)|^-(?=\\s|$)', 'g'
+);
+
+function parseNumber(token) {
+  const raw = String(token).trim();
+  if (!/\d/.test(raw)) return null;
+  const negative = (raw.includes('(') && raw.includes(')')) || /^[-–—]/.test(raw.trim());
+  const cleaned = raw.replace(/[()\s,$€£¥%]/g, '').replace(/^[-–—]+/, '');
+  if (!cleaned) return null;
+  const value = parseFloat(cleaned);
+  if (!isFinite(value)) return null;
+  return negative ? -value : value;
+}
+
+/* Split "Total operating revenue 4 2,753,081 2,102,652" into
+   label "Total operating revenue" and [4, 2753081, 2102652]. The numeric
+   block starts at the first cell after which only cells remain.
+
+   Nulls from dash cells are preserved, including trailing ones: a row reading
+   "...  10  580,157  —" has a real nil in the prior-period column, and
+   dropping it would push the note reference into a period. */
+function splitLine(line) {
+  const matches = [...line.matchAll(CELL_RE)];
+  if (!matches.length) return { label: line.trim(), numbers: [] };
+
+  let start = -1;
+  for (const m of matches) {
+    const tail = line.slice(m.index);
+    const residue = tail.replace(CELL_RE, '').replace(/[$€£¥\s,%–—\-()]/g, '').trim();
+    if (!residue) { start = m.index; break; }
+  }
+  if (start < 0) return { label: line.trim(), numbers: [] };
+
+  const cells = [...line.slice(start).matchAll(CELL_RE)].map(m => parseNumber(m[0]));
+  return { label: line.slice(0, start).trim(), numbers: cells };
+}
+
+function normaliseLabel(label) {
+  return label.toLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/\s+/g, ' ')
+    .replace(/^\(?[a-z0-9]{1,3}\)?[.)]\s+/, '')   // strip "4. " / "(a) "
+    .replace(/\s*[*†‡]+\s*$/, '')                  // strip footnote marks
+    .replace(/[.:]+$/, '')
+    .trim();
+}
+
+/* Return every key whose dictionary matches this label, each with a rank.
+   Rank is the pattern's position in that key's list, so a specific wording
+   outranks a generic fallback. Two things depend on this:
+
+   - "Operating income" and "Earnings before interest and tax" both map to
+     ebit, and on Xero's P&L the former appears FIRST. First-match-wins would
+     store 316,121 as EBIT when the filing's own EBIT is 406,751. Rank lets
+     the specific wording win regardless of page order.
+   - "Profit for the year" matches both npat and cf_npat, and "Depreciation
+     and amortisation" matches both d_and_a and cf_d_and_a. Without the
+     statement each candidate belongs to, the cash flow versions could never
+     populate. */
+function matchCandidates(label) {
+  const norm = normaliseLabel(label);
+  const out = [];
+  for (const [key, patterns] of SYNONYMS) {
+    for (let rank = 0; rank < patterns.length; rank++) {
+      if (patterns[rank].test(norm)) { out.push({ key, rank }); break; }
+    }
+  }
+  return out;
+}
+
+/* Pick the candidate belonging to the statement being parsed; fall back to
+   the best-ranked candidate from anywhere. */
+function matchKey(label, statement) {
+  const candidates = matchCandidates(label);
+  if (!candidates.length) return null;
+  const local = candidates.filter(c => KEY_STATEMENT[c.key] === statement);
+  const pool = local.length ? local : candidates;
+  pool.sort((a, b) => a.rank - b.rank);
+  return pool[0];
+}
+
+/* ---------- PDF text extraction ---------- */
+async function extractPages(file) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const pages = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const page = await pdf.getPage(n);
+    const content = await page.getTextContent();
+
+    /* Group text items into visual lines.
+       Clustering with a tolerance rather than rounding y to an integer is
+       load-bearing: bold subtotal rows sit on a slightly different baseline
+       from their own figures, so exact-y bucketing splits "Total assets" from
+       "9,096,608" into two separate lines and the row is lost entirely. That
+       silently dropped gross profit, total assets, total liabilities and every
+       other subtotal when tested against a real filing. */
+    const LINE_TOLERANCE = 3;
+    const items = [];
+    for (const item of content.items) {
+      if (!item.str || !item.str.trim()) continue;
+      items.push({ x: item.transform[4], y: item.transform[5], s: item.str });
+    }
+    items.sort((a, b) => (b.y - a.y) || (a.x - b.x));   // top of page first
+
+    const clusters = [];
+    for (const item of items) {
+      const last = clusters[clusters.length - 1];
+      if (last && Math.abs(last.y - item.y) <= LINE_TOLERANCE) {
+        last.parts.push(item);
+      } else {
+        clusters.push({ y: item.y, parts: [item] });
+      }
+    }
+    const lines = clusters
+      .map(c => c.parts.sort((a, b) => a.x - b.x)
+        .map(p => p.s).join(' ').replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+
+    pages.push({ number: n, lines, text: lines.join('\n') });
+    if (n % 25 === 0) await new Promise(r => setTimeout(r, 0));   // keep UI alive
+  }
+  return pages;
+}
+
+/* ---------- detection ---------- */
+const STATEMENT_PATTERNS = {
+  income_statement: [/statements?\s+of\s+(?:profit|operations|income|earnings)/i,
+                     /\bincome\s+statements?\b/i, /profit\s+and\s+loss/i],
+  balance_sheet: [/\bbalance\s+sheets?\b/i, /statements?\s+of\s+financial\s+position/i],
+  cash_flow: [/statements?\s+of\s+cash\s+flows?/i, /cash\s+flow\s+statements?/i]
+};
+
+function dataRowDensity(page) {
+  let rows = 0;
+  for (const line of page.lines) {
+    if ((line.match(/\d[\d,]*(?:\.\d+)?/g) || []).length >= 2) rows++;
+  }
+  return page.text.length ? rows * 1000 / page.text.length : 0;
+}
+
+/* A page that merely *mentions* the statements (an auditor's report does)
+   is not a statement. Require numeric density and a heading near the top. */
+function findStatementPages(pages) {
+  const found = {};
+  for (const [kind, patterns] of Object.entries(STATEMENT_PATTERNS)) {
+    const candidates = [];
+    for (const page of pages) {
+      let position = -1;
+      for (const pattern of patterns) {
+        const m = page.text.match(pattern);
+        if (m && (position < 0 || m.index < position)) position = m.index;
+      }
+      if (position < 0) continue;
+      candidates.push({
+        page: page.number,
+        density: dataRowDensity(page),
+        position: position / Math.max(page.text.length, 1)
+      });
+    }
+    const strong = candidates.filter(c => c.density >= 10 && c.position <= 0.35);
+    const chosen = (strong.length ? strong : candidates)
+      .sort((a, b) => b.density - a.density).slice(0, 3);
+    found[kind] = chosen.map(c => c.page);
+  }
+  return found;
+}
+
+function detectPeriods(pages, statementPages) {
+  // A statement's column header carries the period years.
+  const targets = Object.values(statementPages).flat();
+  for (const page of pages) {
+    if (!targets.includes(page.number)) continue;
+    for (const line of page.lines.slice(0, 14)) {
+      const years = (line.match(/\b(19|20)\d{2}\b/g) || [])
+        .map(Number).filter(y => y >= 1990 && y <= 2100);
+      const unique = [...new Set(years)];
+      if (unique.length >= 2) {
+        // Newest first, which is how the workbook is laid out.
+        unique.sort((a, b) => b - a);
+        return unique.slice(0, 5).map(String);
+      }
+    }
+  }
+  return ['Current', 'Prior'];
+}
+
+function detectUnits(text) {
+  if (/in\s+billions|\$\s*b(?:n|illions?)\b/i.test(text)) return 'billions';
+  if (/in\s+millions|\$\s*m(?:n|illions?)?\b/i.test(text)) return 'millions';
+  if (/in\s+thousands|\$\s*0{3}\b|\$'0{3}|\$\s*000s?\b|\(\$000s?\)/i.test(text)) return 'thousands';
+  return 'units as printed';
+}
+
+const CURRENCY_WORDS = [
+  [/new\s+zealand\s+dollars?/i, 'NZD'], [/australian\s+dollars?/i, 'AUD'],
+  [/(?:united\s+states|u\.?\s?s\.?)\s+dollars?/i, 'USD'],
+  [/canadian\s+dollars?/i, 'CAD'], [/singapore\s+dollars?/i, 'SGD'],
+  [/pounds?\s+sterling|british\s+pounds?/i, 'GBP'], [/\beuros?\b/i, 'EUR'],
+  [/japanese\s+yen/i, 'JPY']
+];
+const CURRENCY_SYMBOLS = [
+  [/\bNZ\$|\bNZD\b/g, 'NZD'], [/\bA\$|\bAUD\b/g, 'AUD'], [/\bUS\$|\bUSD\b/g, 'USD'],
+  [/\bC\$|\bCAD\b/g, 'CAD'], [/€|\bEUR\b/g, 'EUR'], [/£|\bGBP\b/g, 'GBP']
+];
+
+/* The presentation currency is often declared only in an accounting-policy
+   note, far from the statements -- so scan the whole document, and prefer an
+   explicit declaration over counting mentions. */
+function detectCurrency(text) {
+  const trigger = /(?:presentation\s+currency|functional\s+currency|(?:presented|expressed|stated|reported|rounded)\s+in)/gi;
+  let m;
+  while ((m = trigger.exec(text)) !== null) {
+    const window = text.slice(m.index + m[0].length, m.index + m[0].length + 120);
+    for (const [pattern, code] of CURRENCY_WORDS) if (pattern.test(window)) return code;
+  }
+  let best = null, bestCount = 0;
+  for (const [pattern, code] of CURRENCY_SYMBOLS) {
+    const count = (text.match(pattern) || []).length;
+    if (count > bestCount) { best = code; bestCount = count; }
+  }
+  return best;
+}
+
+function detectCompany(pages) {
+  for (const line of pages[0].lines) {
+    const t = line.trim();
+    if (t.length > 3 && t.length < 80 && /[A-Za-z]{3}/.test(t) && !/^\d/.test(t)) return t;
+  }
+  return 'Company';
+}
+
+/* ---------- state ---------- */
+const state = {
+  periods: [], values: {}, provenance: {}, labels: {},
+  unmatched: [], meta: {}, hideBlank: false,
+  valuation: {}              // analyst's valuation inputs; missing keys use defaults
+};
+
+const el = id => document.getElementById(id);
+
+/* ---------- session persistence ----------
+   Corrections are the expensive part of using this tool: re-typing thirty
+   cells because a tab was closed makes it not worth opening. Two mechanisms,
+   because neither alone is sufficient:
+
+   - localStorage: automatic, zero-effort, survives closing the tab. But
+     file:// pages have an opaque origin, so a browser set to clear site data
+     (or a different browser) loses it.
+   - a .json file: explicit and portable. Keep it next to the PDF.
+
+   The schema version is stored so a future change to the state shape can
+   reject an incompatible file instead of silently mis-loading it. */
+const SESSION_KEY = 'analyst-starter-session-v1';
+const SESSION_VERSION = 1;
+
+function sessionPayload() {
+  return {
+    version: SESSION_VERSION,
+    savedAt: new Date().toISOString(),
+    meta: state.meta,
+    periods: state.periods,
+    values: state.values,
+    provenance: state.provenance,
+    labels: state.labels,
+    // Capped: the unmapped list can run to hundreds of rows on a long filing,
+    // and it is only needed so the assignment dropdowns still work on restore.
+    unmatched: state.unmatched.slice(0, 400),
+    valuation: state.valuation
+  };
+}
+
+function applySession(payload) {
+  if (!payload || payload.version !== SESSION_VERSION) {
+    throw new Error('That file is not a session saved by this version of the tool.');
+  }
+  state.meta = payload.meta || {};
+  state.periods = payload.periods || [];
+  state.values = payload.values || {};
+  state.provenance = payload.provenance || {};
+  state.labels = payload.labels || {};
+  state.unmatched = payload.unmatched || [];
+  // Added after v1 shipped; older session files simply have no inputs yet.
+  state.valuation = payload.valuation || {};
+}
+
+let autosaveTimer = null;
+function autosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionPayload()));
+    } catch {
+      /* Private browsing, a full quota, or a browser that blocks storage on
+         file:// URLs. Not fatal -- the .json save is the reliable path. */
+    }
+  }, 400);
+}
+
+function storedSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function downloadSession() {
+  const company = (state.meta.company || 'session')
+    .replace(/[^\w\- ]+/g, '').trim().slice(0, 50) || 'session';
+  const blob = new Blob([JSON.stringify(sessionPayload(), null, 2)],
+    { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${company}_session.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  log(`Session saved: ${link.download}`, 'ok');
+}
+
+async function loadSessionFile(file) {
+  try {
+    applySession(JSON.parse(await file.text()));
+  } catch (err) {
+    log(`Could not load that session: ${err.message}`, 'bad');
+    return;
+  }
+  renderAll();
+  autosave();
+  log(`Session restored from ${file.name} `
+    + `(${Object.keys(state.values).length} line items).`, 'ok');
+}
+function log(message, cls) {
+  const node = el('log');
+  node.innerHTML += `\n<span class="${cls || ''}">${message}</span>`;
+  node.scrollTop = node.scrollHeight;
+}
+
+/* ---------- main parse ---------- */
+async function handleFiles(files) {
+  el('log').textContent = '';
+  state.values = {}; state.provenance = {}; state.labels = {}; state.unmatched = [];
+  state.valuation = {};   // a new filing is usually a new company: drop the old price
+
+  const file = files[0];
+  if (files.length > 1) {
+    log(`Using ${file.name}. Multi-file merge is not in this build -- `
+      + `the other ${files.length - 1} file(s) were ignored.`, 'warn');
+  }
+  log(`Reading ${file.name} (${(file.size / 1e6).toFixed(1)} MB)...`);
+
+  let pages;
+  try {
+    pages = await extractPages(file);
+  } catch (err) {
+    log(`Could not read that PDF: ${err.message}`, 'bad');
+    return;
+  }
+  const wholeText = pages.map(p => p.text).join('\n');
+  log(`${pages.length} pages of text extracted.`, 'ok');
+
+  if (wholeText.replace(/\s/g, '').length < 500) {
+    log('This PDF contains almost no selectable text -- it is probably a scan. '
+      + 'This build cannot OCR; try a text-based PDF.', 'bad');
+    return;
+  }
+
+  const statementPages = findStatementPages(pages);
+  const summary = Object.entries(statementPages)
+    .map(([k, v]) => `${STATEMENT_TITLES[k]} p.${v[0] ?? '?'}`).join(', ');
+  log(`Statements located: ${summary}`, 'ok');
+
+  state.periods = detectPeriods(pages, statementPages);
+  const statementText = pages
+    .filter(p => Object.values(statementPages).flat().includes(p.number))
+    .map(p => p.text).join('\n');
+
+  state.meta = {
+    company: detectCompany(pages),
+    currency: detectCurrency(wholeText) || '',
+    units: detectUnits(statementText) || detectUnits(wholeText),
+    source: file.name
+  };
+  log(`Detected ${state.meta.currency || 'currency n/d'}, ${state.meta.units}, `
+    + `periods ${state.periods.join(' / ')}`);
+
+  parseStatements(pages, statementPages);
+  renderAll();
+  autosave();
+}
+
+function parseStatements(pages, statementPages) {
+  const n = state.periods.length;
+  const ranks = {};          // key -> rank of the pattern that claimed it
+
+  for (const [kind, pageNumbers] of Object.entries(statementPages)) {
+    for (const pageNumber of pageNumbers) {
+      const page = pages.find(p => p.number === pageNumber);
+      if (!page) continue;
+
+      for (const line of page.lines) {
+        const { label, numbers } = splitLine(line);
+        if (!label || numbers.length < n) continue;
+        if (label.length < 3 || label.length > 70) continue;
+
+        // LAST n numbers: a leading value is usually the NOTES column, e.g.
+        // "Total operating revenue  4  2,753,081  2,102,652".
+        const values = numbers.slice(-n);
+        // A row whose period cells are all nil carries no information.
+        if (!values.some(v => v !== null)) continue;
+        const hit = matchKey(label, kind);
+
+        if (!hit) {
+          state.unmatched.push({ label, values, page: pageNumber, statement: kind });
+          continue;
+        }
+        // A better-ranked (more specific) wording replaces a weaker one.
+        const existing = ranks[hit.key];
+        if (existing === undefined || hit.rank < existing) {
+          if (existing !== undefined) {
+            state.unmatched.push({
+              label: state.labels[hit.key], values: state.values[hit.key],
+              page: state.provenance[hit.key], statement: kind
+            });
+          }
+          state.values[hit.key] = values;
+          state.provenance[hit.key] = pageNumber;
+          state.labels[hit.key] = label;
+          ranks[hit.key] = hit.rank;
+        } else {
+          state.unmatched.push({ label, values, page: pageNumber, statement: kind });
+        }
+      }
+    }
+  }
+  const matched = Object.keys(state.values).length;
+  log(`Mapped ${matched} line items. ${state.unmatched.length} lines unmapped `
+    + `(listed below for assignment).`, matched > 15 ? 'ok' : 'warn');
+}
+
+/* ---------- derived values ---------- */
+const val = (key, i) => {
+  const series = state.values[key];
+  const v = series ? series[i] : null;
+  return (v === null || v === undefined || isNaN(v)) ? null : v;
+};
+const mag = v => v === null ? null : Math.abs(v);
+const div = (a, b) => (a === null || b === null || b === 0) ? null : a / b;
+const sumPresent = (...xs) => {
+  const present = xs.filter(x => x !== null && x !== undefined);
+  return present.length ? present.reduce((a, b) => a + b, 0) : null;
+};
+const growth = (cur, prior) => (cur === null || prior === null || prior <= 0) ? null : cur / prior - 1;
+
+/* All-in capex. For a software company, capitalised development dwarfs PP&E
+   (Xero FY26: 405,829 vs 9,398) and omitting it overstates FCF by ~84%. */
+function allInCapex(i) {
+  const parts = ['capex', 'capitalised_development', 'capitalised_contract_costs']
+    .map(k => mag(val(k, i)));
+  return sumPresent(...parts);
+}
+
+function derived(i) {
+  const revenue = val('total_revenue', i);
+  // Many filings label only one of these. Prefer an explicit EBIT line; fall
+  // back to operating income so the margin and coverage ratios still compute.
+  const ebit = val('ebit', i) ?? val('operating_income', i);
+  const da = mag(val('d_and_a', i));
+  let ebitda = val('ebitda', i);
+  if (ebitda === null && ebit !== null && da !== null) ebitda = ebit + da;
+
+  const npat = val('npat', i);
+  const ocf = val('cash_from_operations', i);
+  const capex = allInCapex(i);
+  const fcf = ocf === null ? null : ocf - (capex || 0);
+
+  const debt = sumPresent(mag(val('st_debt', i)), mag(val('lt_debt', i)),
+                          mag(val('current_lease', i)), mag(val('lt_lease', i)));
+  const cash = sumPresent(val('cash', i), val('st_investments', i));
+  const netDebt = debt === null ? null : debt - (cash || 0);
+  const equity = val('total_equity', i);
+  const assets = val('total_assets', i);
+
+  const taxRate = div(mag(val('income_tax', i)), val('pbt', i));
+  const nopat = (ebit === null || taxRate === null) ? null : ebit * (1 - taxRate);
+  const invested = (debt === null && equity === null) ? null
+    : (debt || 0) + (equity || 0) - (cash || 0);
+
+  return { revenue, ebit, ebitda, da, npat, ocf, capex, fcf, debt, cash,
+           netDebt, equity, assets, taxRate, nopat, invested };
+}
+
+function avg(key, i) {
+  const a = val(key, i), b = val(key, i + 1);
+  if (a === null && b === null) return null;
+  if (a === null) return b;
+  if (b === null) return a;
+  return (a + b) / 2;
+}
+
+function bsCheck(i) {
+  const assets = val('total_assets', i);
+  const equity = val('total_equity', i);
+  let liabilities = val('total_liabilities', i);
+  if (liabilities === null) {
+    liabilities = sumPresent(mag(val('total_current_liabilities', i)),
+                             mag(val('total_non_current_liabilities', i)));
+  } else {
+    liabilities = Math.abs(liabilities);
+  }
+  if (assets === null || equity === null || liabilities === null) return null;
+  return assets - liabilities - equity;
+}
+
+/* ---------- ratios ---------- */
+function buildRatios() {
+  const n = state.periods.length;
+  const idx = [...Array(n).keys()];
+  const d = idx.map(derived);
+  const section = (title, rows) => ({ title, rows });
+  const row = (label, fn, fmt) => ({ label, values: idx.map(fn), fmt: fmt || 'num' });
+
+  return [
+    section('Growth', [
+      row('Revenue growth YoY', i => growth(d[i].revenue, d[i + 1] ? d[i + 1].revenue : null), 'pct'),
+      row('Gross profit growth YoY', i => growth(val('gross_profit', i), val('gross_profit', i + 1)), 'pct'),
+      row('EBITDA growth YoY', i => growth(d[i].ebitda, d[i + 1] ? d[i + 1].ebitda : null), 'pct'),
+      row('EBIT growth YoY', i => growth(d[i].ebit, d[i + 1] ? d[i + 1].ebit : null), 'pct'),
+      row('NPAT growth YoY', i => growth(d[i].npat, d[i + 1] ? d[i + 1].npat : null), 'pct'),
+      row('EPS (diluted) growth YoY', i => growth(val('eps_diluted', i), val('eps_diluted', i + 1)), 'pct')
+    ]),
+    section('Margins', [
+      row('Gross margin', i => div(val('gross_profit', i), d[i].revenue), 'pct'),
+      row('EBITDA margin', i => div(d[i].ebitda, d[i].revenue), 'pct'),
+      row('EBIT margin', i => div(d[i].ebit, d[i].revenue), 'pct'),
+      row('Pre-tax margin', i => div(val('pbt', i), d[i].revenue), 'pct'),
+      row('Net margin', i => div(d[i].npat, d[i].revenue), 'pct'),
+      row('R&D / revenue', i => div(mag(val('research_development', i)), d[i].revenue), 'pct'),
+      row('S&M / revenue', i => div(mag(val('sales_marketing', i)), d[i].revenue), 'pct'),
+      row('G&A / revenue', i => div(mag(val('general_admin', i)), d[i].revenue), 'pct'),
+      row('Total opex / revenue', i => div(mag(val('total_opex', i)), d[i].revenue), 'pct')
+    ]),
+    section('Working capital', [
+      row('DSO (days)', i => { const r = div(val('receivables', i), d[i].revenue); return r === null ? null : r * 365; }),
+      row('DIO (days)', i => { const r = div(val('inventory', i), mag(val('cost_of_revenue', i))); return r === null ? null : r * 365; }),
+      row('DPO (days)', i => { const r = div(mag(val('payables', i)), mag(val('cost_of_revenue', i))); return r === null ? null : r * 365; }),
+      row('Deferred revenue / revenue',
+        i => div(sumPresent(mag(val('deferred_revenue_current', i)), mag(val('deferred_revenue_nc', i))), d[i].revenue), 'pct')
+    ]),
+    section('Capital efficiency', [
+      row('Effective tax rate', i => d[i].taxRate, 'pct'),
+      row('ROIC (NOPAT / avg invested capital)', i => {
+        const cur = d[i].invested, prior = d[i + 1] ? d[i + 1].invested : null;
+        const average = (cur === null) ? prior : (prior === null ? cur : (cur + prior) / 2);
+        return div(d[i].nopat, average);
+      }, 'pct'),
+      row('ROE (NPAT / avg equity)', i => div(d[i].npat, avg('total_equity', i)), 'pct'),
+      row('ROA (NPAT / avg assets)', i => div(d[i].npat, avg('total_assets', i)), 'pct'),
+      row('Asset turnover', i => div(d[i].revenue, avg('total_assets', i)), 'x'),
+      row('Capex / revenue  (all-in)', i => div(d[i].capex, d[i].revenue), 'pct'),
+      row('Capex / D&A  (all-in)', i => div(d[i].capex, d[i].da), 'x')
+    ]),
+    section('Cash generation', [
+      row('Operating CF / revenue', i => div(d[i].ocf, d[i].revenue), 'pct'),
+      row('Capex (PP&E only)', i => mag(val('capex', i))),
+      row('Capex (all-in, incl. capitalised dev)', i => d[i].capex),
+      row('Free cash flow (all-in capex)', i => d[i].fcf),
+      row('FCF margin', i => div(d[i].fcf, d[i].revenue), 'pct'),
+      row('Cash conversion (FCF / NPAT)', i => (d[i].npat !== null && d[i].npat > 0) ? div(d[i].fcf, d[i].npat) : null, 'pct'),
+      row('OCF / EBITDA', i => (d[i].ebitda !== null && d[i].ebitda > 0) ? div(d[i].ocf, d[i].ebitda) : null, 'pct')
+    ]),
+    section('Liquidity', [
+      row('Current ratio', i => div(val('total_current_assets', i), mag(val('total_current_liabilities', i))), 'x'),
+      row('Quick ratio', i => div(sumPresent(val('cash', i), val('st_investments', i), val('receivables', i)), mag(val('total_current_liabilities', i))), 'x'),
+      row('Cash ratio', i => div(sumPresent(val('cash', i), val('st_investments', i)), mag(val('total_current_liabilities', i))), 'x')
+    ]),
+    section('Leverage & coverage', [
+      row('Total debt', i => d[i].debt),
+      row('Cash & equivalents + ST investments', i => d[i].cash),
+      row('Net debt', i => d[i].netDebt),
+      row('Net debt / EBITDA', i => (d[i].ebitda !== null && d[i].ebitda > 0) ? div(d[i].netDebt, d[i].ebitda) : null, 'x'),
+      row('Debt / Equity', i => div(d[i].debt, d[i].equity), 'x'),
+      row('Interest coverage (EBIT / finance expense)', i => div(d[i].ebit, mag(val('finance_expense', i))), 'x')
+    ]),
+    section('Per share', [
+      row('EPS (basic)', i => val('eps_basic', i), 'ps'),
+      row('EPS (diluted)', i => val('eps_diluted', i), 'ps'),
+      row('DPS', i => val('dps', i), 'ps'),
+      row('Payout ratio', i => { const e = val('eps_diluted', i); return (e !== null && e > 0) ? div(mag(val('dps', i)), e) : null; }, 'pct'),
+      row('Book value per share', i => div(d[i].equity, val('shares_diluted', i)), 'ps')
+    ])
+  ];
+}
+
+/* ---------- valuation ----------
+   Trading multiples, a CAPM / WACC build-up and a five-year DCF, all on the
+   latest period. Statement figures stay in the filing's units; only the share
+   price (per share, presentation currency) and share count (millions) are
+   not, and unitScale() bridges the two. */
+function unitScale() {
+  const units = String(state.meta.units || '').toLowerCase();
+  if (/bil/.test(units)) return 1e9;
+  if (/mil/.test(units)) return 1e6;
+  if (/thou|000/.test(units)) return 1e3;
+  return 1;
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const DCF_YEARS = 5;
+
+/* [key, label, input kind, panel]. 'pct' fields are typed as percentages. */
+const VALUATION_FIELDS = [
+  ['price',    'Share price',            'money', 'Market'],
+  ['sharesM',  'Diluted shares (m)',     'num',   'Market'],
+  ['rf',       'Risk-free rate',         'pct',   'Cost of capital'],
+  ['beta',     'Beta',                   'num',   'Cost of capital'],
+  ['erp',      'Equity risk premium',    'pct',   'Cost of capital'],
+  ['kd',       'Pre-tax cost of debt',   'pct',   'Cost of capital'],
+  ['tax',      'Tax rate',               'pct',   'Cost of capital'],
+  ['wacc',     'WACC override',          'pct',   'Cost of capital'],
+  ['growth',   'Revenue growth, yr 1',   'pct',   'DCF'],
+  ['margin',   `FCF margin, yr ${DCF_YEARS}`, 'pct', 'DCF'],
+  ['terminal', 'Terminal growth',        'pct',   'DCF']
+];
+
+function valuationDefaults() {
+  const d0 = derived(0);
+  const d1 = state.periods.length > 1 ? derived(1) : null;
+
+  // Share counts are printed either in full or in the statement's units. A
+  // raw figure under a million cannot be a listed company's full count.
+  const raw = mag(val('shares_diluted', 0)) ?? mag(val('shares_basic', 0));
+  const sharesM = raw === null ? null : (raw >= 1e6 ? raw : raw * unitScale()) / 1e6;
+
+  const revGrowth = d1 ? growth(d0.revenue, d1.revenue) : null;
+  const fcfMargin = div(d0.fcf, d0.revenue);
+  const tax = d0.taxRate;
+  return {
+    price: null, sharesM,
+    rf: 0.045, beta: 1.0, erp: 0.055, kd: 0.06,
+    tax: (tax !== null && tax > 0 && tax < 0.5) ? tax : 0.25,
+    wacc: null,                       // computed from the build-up unless overridden
+    growth: revGrowth !== null ? clamp(revGrowth, -0.2, 0.5) : 0.08,
+    margin: fcfMargin !== null ? clamp(fcfMargin, -0.5, 0.6) : null,
+    terminal: 0.025
+  };
+}
+
+/* Growth fades in a straight line from the year-1 rate toward terminal, and
+   the FCF margin walks from today's level to the year-5 target, so the
+   hand-off into the terminal value is not a cliff. */
+function runDcf(a) {
+  if (a.revenue === null || a.revenue <= 0) return { error: 'Needs total revenue for the latest period.' };
+  if (a.endMargin === null) return { error: `Enter a year-${DCF_YEARS} FCF margin -- free cash flow could not be computed from the filing.` };
+  if (a.wacc <= a.terminal) return { error: 'WACC must be higher than terminal growth.' };
+
+  const start = a.startMargin ?? a.endMargin;
+  const years = [];
+  let revenue = a.revenue, pvSum = 0;
+  for (let t = 1; t <= DCF_YEARS; t++) {
+    const g = a.growth1 + (a.terminal - a.growth1) * (t - 1) / DCF_YEARS;
+    const margin = start + (a.endMargin - start) * t / DCF_YEARS;
+    revenue *= 1 + g;
+    const fcf = revenue * margin;
+    const factor = 1 / Math.pow(1 + a.wacc, t);
+    pvSum += fcf * factor;
+    years.push({ t, growth: g, revenue, margin, fcf, factor, pv: fcf * factor });
+  }
+  const tv = years[DCF_YEARS - 1].fcf * (1 + a.terminal) / (a.wacc - a.terminal);
+  const pvTv = tv / Math.pow(1 + a.wacc, DCF_YEARS);
+  const ev = pvSum + pvTv;
+  const equity = ev - a.claims;
+  const perShare = a.sharesM ? equity * a.scale / (a.sharesM * 1e6) : null;
+  return { years, pvSum, tv, pvTv, ev, equity, perShare, tvShare: div(pvTv, ev) };
+}
+
+function computeValuation() {
+  const auto = valuationDefaults();
+  const x = {};
+  for (const key of Object.keys(auto)) {
+    const v = state.valuation[key];
+    x[key] = (v === null || v === undefined || isNaN(v)) ? auto[key] : v;
+  }
+
+  const d = derived(0);
+  const scale = unitScale();
+  const minority = mag(val('minority_interest', 0)) || 0;
+  // No debt line at all is common for cash-rich companies: net debt is -cash.
+  const netDebt = d.netDebt !== null ? d.netDebt : (d.cash !== null ? -d.cash : 0);
+  const marketCap = (x.price !== null && x.sharesM) ? x.price * x.sharesM * 1e6 / scale : null;
+  const ev = marketCap === null ? null : marketCap + netDebt + minority;
+
+  // CAPM cost of equity; capital weights at market value, book equity if no price yet.
+  const ke = x.rf + x.beta * x.erp;
+  const kdAfterTax = x.kd * (1 - x.tax);
+  const equityBase = marketCap ?? (d.equity > 0 ? d.equity : null);
+  const debt = d.debt || 0;
+  const computedWacc = equityBase === null ? ke
+    : (equityBase * ke + debt * kdAfterTax) / (equityBase + debt);
+  const wacc = x.wacc ?? computedWacc;
+
+  const dcfArgs = {
+    revenue: d.revenue, startMargin: div(d.fcf, d.revenue), growth1: x.growth,
+    endMargin: x.margin, wacc, terminal: x.terminal,
+    claims: netDebt + minority, sharesM: x.sharesM, scale
+  };
+  const dcf = runDcf(dcfArgs);
+  const upside = (dcf.perShare != null && x.price) ? dcf.perShare / x.price - 1 : null;
+
+  return { x, auto, d, scale, minority, netDebt, marketCap, ev,
+           ke, kdAfterTax, debt, computedWacc, wacc, dcfArgs, dcf, upside };
+}
+
+function valuationMultiples(v) {
+  const { d, marketCap: mc, ev } = v;
+  return [
+    ['Market capitalisation', mc, 'num'],
+    ['Net debt / (net cash), incl. leases', v.netDebt, 'num'],
+    ['Minority interest', v.minority || null, 'num'],
+    ['Enterprise value', ev, 'num'],
+    ['EV / Revenue', div(ev, d.revenue), 'x'],
+    ['EV / EBITDA', d.ebitda > 0 ? div(ev, d.ebitda) : null, 'x'],
+    ['EV / EBIT', d.ebit > 0 ? div(ev, d.ebit) : null, 'x'],
+    ['P / E', d.npat > 0 ? div(mc, d.npat) : null, 'x'],
+    ['P / FCF', d.fcf > 0 ? div(mc, d.fcf) : null, 'x'],
+    ['FCF yield', div(d.fcf, mc), 'pct'],
+    ['P / Book', d.equity > 0 ? div(mc, d.equity) : null, 'x'],
+    ['Dividend yield (cash paid)', div(mag(val('cf_dividends', 0)), mc), 'pct']
+  ];
+}
+
+const SENS_WACC = [-0.01, -0.005, 0, 0.005, 0.01];
+const SENS_G = [-0.005, -0.0025, 0, 0.0025, 0.005];
+
+/* Implied value per share (or equity value, without a share count) across
+   WACC x terminal growth. A DCF is only as good as these two inputs, so the
+   grid matters more than the single point estimate. */
+function sensitivityGrid(v) {
+  const waccs = SENS_WACC.map(s => v.wacc + s);
+  const gs = SENS_G.map(s => v.x.terminal + s);
+  const cells = waccs.map(w => gs.map(g => {
+    const r = runDcf({ ...v.dcfArgs, wacc: w, terminal: g });
+    return r.error ? null : (r.perShare ?? r.equity);
+  }));
+  return { waccs, gs, cells, perShare: v.dcf.perShare != null };
+}
+
+function forecastLabel(t) {
+  const base = String(state.periods[0] || '').match(/(19|20)\d{2}/);
+  return base ? `FY${+base[0] + t}E` : `Year ${t}`;
+}
+
+/* ---------- flags ---------- */
+function buildFlags() {
+  const flags = [];
+  const n = state.periods.length;
+
+  for (let i = 0; i < n; i++) {
+    const diff = bsCheck(i);
+    const assets = val('total_assets', i);
+    if (diff === null) continue;
+    const share = assets ? Math.abs(diff) / Math.abs(assets) : null;
+    if (share !== null && share > 0.005) {
+      flags.push({ severity: 'alert', name: `Balance sheet does not balance (${state.periods[i]})`,
+        text: `Assets less liabilities and equity = ${fmt(diff, 'num')} `
+          + `(${(share * 100).toFixed(2)}% of total assets). Either a line was mis-read or one is `
+          + `missing -- check the highlighted rows above before using any ratio.` });
+    } else {
+      flags.push({ severity: 'info', name: `Balance sheet checks out (${state.periods[i]})`,
+        text: `Assets less liabilities and equity = ${fmt(diff, 'num')}, within the 0.5% tolerance.` });
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    const d = derived(i);
+    if (d.npat !== null && d.ocf !== null && d.assets !== null) {
+      const accruals = (d.npat - d.ocf) / d.assets;
+      if (Math.abs(accruals) > 0.05) {
+        flags.push({ severity: Math.abs(accruals) > 0.10 ? 'alert' : 'watch',
+          name: `Accruals ratio ${(accruals * 100).toFixed(1)}% (${state.periods[i]})`,
+          text: '(NPAT - operating cash flow) / total assets. Large and positive means reported '
+            + 'earnings are running ahead of cash collected. Sustained negative values are usually '
+            + 'benign for a subscription business collecting up front.' });
+      }
+    }
+    break;   // latest period only, to keep the list readable
+  }
+
+  const devCapex = mag(val('capitalised_development', 0));
+  const ppeCapex = mag(val('capex', 0));
+  if (devCapex !== null && ppeCapex !== null && devCapex > ppeCapex) {
+    flags.push({ severity: 'watch', name: 'Capitalised development dominates capex',
+      text: `Capitalised development of ${fmt(devCapex, 'num')} is larger than PP&E capex of `
+        + `${fmt(ppeCapex, 'num')}. Free cash flow here subtracts BOTH. Treating only PP&E as capex `
+        + `would materially overstate FCF.` });
+  }
+
+  for (const [key, series] of Object.entries(state.values)) {
+    if (!EXPENSE_KEYS.has(key)) continue;
+    if (series.some(v => v !== null && v > 0)) {
+      flags.push({ severity: 'watch', name: `Sign looks inverted: ${labelFor(key)}`,
+        text: 'This is normally reported as a negative. The filing\'s own sign has been kept '
+          + 'rather than corrected -- check it before relying on derived figures.' });
+    }
+  }
+
+  const missing = ['total_revenue', 'total_assets', 'cash_from_operations']
+    .filter(k => !(k in state.values));
+  if (missing.length) {
+    flags.push({ severity: 'alert', name: 'Core line items were not found',
+      text: `Could not map: ${missing.map(labelFor).join(', ')}. Use the unmapped-lines table `
+        + `to assign them, or type the values in directly.` });
+  }
+
+  const tvShare = n ? computeValuation().dcf.tvShare : null;
+  if (tvShare != null && tvShare > 0.75) {
+    flags.push({ severity: 'watch', name: `Terminal value is ${(tvShare * 100).toFixed(0)}% of DCF enterprise value`,
+      text: 'Most of the value sits beyond the forecast period, so the DCF result swings hard with '
+        + 'WACC and terminal growth. Read it alongside the sensitivity grid, not as a point estimate.' });
+  }
+  return flags;
+}
+
+function labelFor(key) {
+  for (const rows of Object.values(SCHEMA)) {
+    for (const [, k, label] of rows) if (k === key) return label;
+  }
+  return key;
+}
+
+/* ---------- formatting ---------- */
+function fmt(value, kind) {
+  if (value === null || value === undefined || isNaN(value)) return '';
+  if (kind === 'pct') return (value * 100).toFixed(1) + '%';
+  if (kind === 'x') return value.toFixed(2) + 'x';
+  if (kind === 'ps') return value.toFixed(2);
+  const abs = Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return value < 0 ? `(${abs})` : abs;
+}
+
+/* ---------- rendering ---------- */
+function renderAll() {
+  renderMeta(); renderReview(); renderUnmatched(); renderRatios(); renderValuation(); renderFlags();
+  for (const id of ['metaSection','reviewSection','unmatchedSection','ratioSection','valSection','flagSection','exportSection']) {
+    el(id).classList.remove('hidden');
+  }
+}
+
+function renderMeta() {
+  const grid = el('metaGrid');
+  grid.innerHTML = '';
+  const field = (label, value, onInput, width) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    wrap.innerHTML = `<label>${label}</label>`;
+    const input = document.createElement('input');
+    input.value = value ?? '';
+    if (width) input.style.width = width;
+    input.addEventListener('input', () => { onInput(input.value); autosave(); });
+    wrap.appendChild(input);
+    grid.appendChild(wrap);
+  };
+  field('Company', state.meta.company, v => state.meta.company = v, '260px');
+  field('Currency', state.meta.currency, v => { state.meta.currency = v; renderValuationOutputs(); }, '90px');
+  // Units scale share price into statement terms, so they move every valuation figure.
+  field('Units', state.meta.units, v => { state.meta.units = v; renderValuation(); renderFlags(); }, '150px');
+  state.periods.forEach((p, i) => {
+    field(`Period ${i + 1}`, p, v => {
+      state.periods[i] = v;
+      renderReview(); renderRatios(); renderValuationOutputs();
+    }, '100px');
+  });
+}
+
+function renderReview() {
+  const table = el('review');
+  const n = state.periods.length;
+  let html = `<thead><tr><th style="min-width:260px">Line item</th>`;
+  state.periods.forEach(p => html += `<th class="r">${escapeHtml(p)}</th>`);
+  html += `<th>Page</th><th style="min-width:200px">As reported in the filing</th></tr></thead><tbody>`;
+
+  let matched = 0;
+  for (const [statement, rows] of Object.entries(SCHEMA)) {
+    html += `<tr class="head"><td colspan="${n + 3}">${STATEMENT_TITLES[statement]}</td></tr>`;
+    for (const [kind, key, label] of rows) {
+      if (kind === 'head') {
+        html += `<tr class="sub"><td colspan="${n + 3}">${label}</td></tr>`;
+        continue;
+      }
+      if (kind === 'check') {
+        html += `<tr class="sub"><td>${label}</td>`;
+        for (let i = 0; i < n; i++) {
+          const diff = bsCheck(i);
+          const assets = val('total_assets', i);
+          const bad = diff !== null && assets && Math.abs(diff) / Math.abs(assets) > 0.005;
+          html += `<td class="r" style="font-family:Consolas;${bad ? 'color:#e06c6c;font-weight:700' : ''}">`
+            + `${diff === null ? '' : fmt(diff, 'num')}</td>`;
+        }
+        html += `<td></td><td class="src">computed</td></tr>`;
+        continue;
+      }
+
+      const has = key in state.values;
+      if (has) matched++;
+      if (state.hideBlank && !has) continue;
+
+      html += `<tr class="${kind === 'sub' ? 'sub' : ''}"><td>${label}</td>`;
+      for (let i = 0; i < n; i++) {
+        const v = val(key, i);
+        html += `<td class="r"><input class="num" data-key="${key}" data-i="${i}" `
+          + `value="${v === null ? '' : v}"></td>`;
+      }
+      html += `<td class="src">${state.provenance[key] ? 'p.' + state.provenance[key] : ''}</td>`;
+      html += `<td class="src">${has ? escapeHtml(state.labels[key] || '')
+        : '<span class="pill none">not found</span>'}</td></tr>`;
+    }
+  }
+  table.innerHTML = html + '</tbody>';
+
+  table.querySelectorAll('input.num').forEach(input => {
+    input.addEventListener('change', () => {
+      const key = input.dataset.key, i = +input.dataset.i;
+      if (!state.values[key]) state.values[key] = new Array(n).fill(null);
+      const parsed = parseNumber(input.value);
+      state.values[key][i] = input.value.trim() === '' ? null : parsed;
+      if (!state.labels[key]) state.labels[key] = 'entered manually';
+      autosave();
+      renderRatios(); renderValuation(); renderFlags(); renderReview();
+    });
+  });
+
+  const total = Object.values(SCHEMA).flat().filter(r => r[0] !== 'head' && r[0] !== 'check').length;
+  el('matchCount').textContent = `${matched} of ${total} line items populated.`;
+}
+
+function renderUnmatched() {
+  const table = el('unmatched');
+  const n = state.periods.length;
+  const options = Object.values(SCHEMA).flat()
+    .filter(r => r[1] && r[0] !== 'check')
+    .map(r => `<option value="${r[1]}">${r[2]}</option>`).join('');
+
+  let html = `<thead><tr><th style="min-width:300px">Line in the PDF</th>`;
+  state.periods.forEach(p => html += `<th class="r">${escapeHtml(p)}</th>`);
+  html += `<th>Page</th><th style="min-width:230px">Assign to</th></tr></thead><tbody>`;
+
+  state.unmatched.slice(0, 220).forEach((row, index) => {
+    html += `<tr><td>${escapeHtml(row.label)}</td>`;
+    for (let i = 0; i < n; i++) {
+      html += `<td class="r" style="font-family:Consolas;font-size:12px">`
+        + `${row.values[i] === undefined ? '' : fmt(row.values[i], 'num')}</td>`;
+    }
+    html += `<td class="src">p.${row.page}</td>`;
+    html += `<td><select data-index="${index}"><option value="">&mdash;</option>${options}</select></td></tr>`;
+  });
+  table.innerHTML = html + '</tbody>';
+
+  table.querySelectorAll('select').forEach(select => {
+    select.addEventListener('change', () => {
+      const key = select.value;
+      if (!key) return;
+      const row = state.unmatched[+select.dataset.index];
+      state.values[key] = row.values.slice(0, n);
+      state.provenance[key] = row.page;
+      state.labels[key] = row.label;
+      log(`Assigned "${row.label}" to ${labelFor(key)}.`, 'ok');
+      autosave();
+      renderReview(); renderRatios(); renderValuation(); renderFlags();
+    });
+  });
+}
+
+function renderRatios() {
+  const table = el('ratios');
+  const n = state.periods.length;
+  let html = `<thead><tr><th style="min-width:300px">Ratio</th>`;
+  state.periods.forEach(p => html += `<th class="r">${escapeHtml(p)}</th>`);
+  html += `</tr></thead><tbody>`;
+  for (const section of buildRatios()) {
+    html += `<tr class="head"><td colspan="${n + 1}">${section.title}</td></tr>`;
+    for (const row of section.rows) {
+      html += `<tr><td>${row.label}</td>`;
+      row.values.forEach(v => html += `<td class="r" style="font-family:Consolas;font-size:12px">${fmt(v, row.fmt)}</td>`);
+      html += `</tr>`;
+    }
+  }
+  table.innerHTML = html + '</tbody>';
+}
+
+/* Inputs are built once per full render; typing only redraws the outputs, so
+   the field being edited keeps focus. */
+function renderValuation() {
+  const v = computeValuation();
+  const container = el('valInputs');
+  container.innerHTML = '';
+  const grids = {};
+  const shown = (x, kind) => (x === null || x === undefined) ? ''
+    : kind === 'pct' ? String(+(x * 100).toFixed(2)) : String(+x.toFixed(kind === 'money' ? 4 : 2));
+
+  for (const [key, label, kind, group] of VALUATION_FIELDS) {
+    if (!grids[group]) {
+      const panel = document.createElement('div');
+      panel.className = 'panel';
+      panel.innerHTML = `<h3>${group}</h3><div class="grid"></div>`;
+      container.appendChild(panel);
+      grids[group] = panel.querySelector('.grid');
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    wrap.innerHTML = `<label>${label}${kind === 'pct' ? ' (%)' : ''}</label>`;
+    const input = document.createElement('input');
+    input.className = 'num';
+    input.id = `val-${key}`;
+    input.value = shown(state.valuation[key], kind);
+    const fallback = key === 'wacc' ? v.computedWacc : v.auto[key];
+    input.placeholder = key === 'price' ? 'enter' : (fallback === null ? '—' : shown(fallback, kind));
+    input.addEventListener('input', () => {
+      const parsed = parseNumber(input.value);
+      state.valuation[key] = (input.value.trim() === '' || parsed === null) ? null
+        : kind === 'pct' ? parsed / 100 : parsed;
+      autosave();
+      renderValuationOutputs();
+      renderFlags();
+    });
+    wrap.appendChild(input);
+    grids[group].appendChild(wrap);
+  }
+  renderValuationOutputs(v);
+}
+
+function renderValuationOutputs(v) {
+  v = v || computeValuation();
+  const waccInput = el('val-wacc');
+  if (waccInput) waccInput.placeholder = String(+(v.computedWacc * 100).toFixed(2));
+
+  const ccy = escapeHtml(state.meta.currency || '');
+  const { dcf } = v;
+  const cell = (value, kind, extra) => `<td class="r mono ${extra || ''}">${fmt(value, kind)}</td>`;
+  const stat = (label, value, cls) =>
+    `<div class="stat ${cls || ''}"><small>${label}</small><b>${value || '&mdash;'}</b></div>`;
+
+  let html = '<div class="headline">'
+    + stat('Cost of equity (CAPM)', fmt(v.ke, 'pct'))
+    + stat(v.x.wacc != null ? 'WACC (override)' : 'WACC', fmt(v.wacc, 'pct'))
+    + (dcf.perShare != null
+        ? stat('DCF value per share', `${ccy} ${dcf.perShare.toFixed(2)}`)
+        : stat('DCF equity value', fmt(dcf.equity, 'num')))
+    + stat('Upside / (downside)', fmt(v.upside, 'pct'),
+        v.upside == null ? '' : v.upside >= 0 ? 'up' : 'down')
+    + '</div>';
+
+  // Trading multiples
+  html += '<div class="val-cols"><div><div class="wrap"><table>'
+    + `<thead><tr><th>Trading multiples (${escapeHtml(state.periods[0] || 'latest')})</th><th class="r">Value</th></tr></thead><tbody>`;
+  for (const [label, value, kind] of valuationMultiples(v)) {
+    html += `<tr><td>${label}</td>${cell(value, kind)}</tr>`;
+  }
+  if (v.marketCap === null) {
+    html += `<tr><td colspan="2" class="src">Enter a share price${v.x.sharesM ? '' : ' and share count'} to compute market value and multiples.</td></tr>`;
+  }
+  html += '</tbody></table></div></div>';
+
+  // DCF projection
+  html += '<div><div class="wrap"><table>';
+  if (dcf.error) {
+    html += `<tbody><tr><td class="src">DCF not run: ${escapeHtml(dcf.error)}</td></tr></tbody>`;
+  } else {
+    html += `<thead><tr><th>DCF</th>${dcf.years.map(y => `<th class="r">${forecastLabel(y.t)}</th>`).join('')}</tr></thead><tbody>`;
+    const line = (label, pick, kind) =>
+      `<tr><td>${label}</td>${dcf.years.map(y => cell(pick(y), kind)).join('')}</tr>`;
+    html += line('Revenue growth', y => y.growth, 'pct')
+      + line('Revenue', y => y.revenue, 'num')
+      + line('FCF margin', y => y.margin, 'pct')
+      + line('Free cash flow', y => y.fcf, 'num')
+      + line('Discount factor', y => y.factor, 'ps')
+      + line('PV of FCF', y => y.pv, 'num');
+    const total = (label, value, kind, bold) =>
+      `<tr class="${bold ? 'sub' : ''}"><td>${label}</td><td colspan="${DCF_YEARS - 1}"></td>${cell(value, kind)}</tr>`;
+    html += total('Sum of PV of FCF', dcf.pvSum, 'num')
+      + total(`Terminal value (g = ${fmt(v.x.terminal, 'pct')})`, dcf.tv, 'num')
+      + total('PV of terminal value', dcf.pvTv, 'num')
+      + total('Enterprise value', dcf.ev, 'num', true)
+      + total('Net cash / (net debt) less minority', -(v.netDebt + v.minority), 'num')
+      + total('Equity value', dcf.equity, 'num', true)
+      + total('Terminal value share of EV', dcf.tvShare, 'pct');
+    if (dcf.perShare != null) html += total(`Value per share (${ccy})`, dcf.perShare, 'ps', true);
+  }
+  html += '</tbody></table></div></div></div>';
+
+  // Sensitivity
+  if (!dcf.error) {
+    const s = sensitivityGrid(v);
+    const kind = s.perShare ? 'ps' : 'num';
+    html += `<h2 style="margin-top:18px">Sensitivity &mdash; ${s.perShare ? `value per share (${ccy})` : 'equity value'}: WACC down, terminal growth across</h2>`
+      + '<div class="wrap" style="max-width:640px"><table><thead><tr><th>WACC \\ g</th>'
+      + s.gs.map(g => `<th class="r">${fmt(g, 'pct')}</th>`).join('') + '</tr></thead><tbody>';
+    s.waccs.forEach((w, r) => {
+      html += `<tr><td class="mono">${fmt(w, 'pct')}</td>`
+        + s.cells[r].map((value, c) => cell(value, kind,
+            SENS_WACC[r] === 0 && SENS_G[c] === 0 ? 'base' : '')).join('')
+        + '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  el('valOutputs').innerHTML = html;
+}
+
+function renderFlags() {
+  const container = el('flags');
+  const flags = buildFlags();
+  container.innerHTML = flags.map(f =>
+    `<div class="flag ${f.severity}"><b>${escapeHtml(f.name)}</b><span>${f.text}</span></div>`
+  ).join('') || '<div class="flag"><b>No checks could be run</b><span>Too few figures were found.</span></div>';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+/* ---------- xlsx export ---------- */
+const FMT_NUM = '#,##0.0;(#,##0.0);-';
+const FMT_PCT = '0.0%;(0.0%);-';
+const FMT_X   = '#,##0.00"x";(#,##0.00"x");-';
+const FMT_PS  = '#,##0.00;(#,##0.00);-';
+const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+const ALERT_FILL  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
+
+function styleSheet(sheet, n) {
+  sheet.getColumn(1).width = 46;
+  for (let i = 0; i < n; i++) sheet.getColumn(2 + i).width = 15;
+  sheet.getColumn(2 + n).width = 10;
+  sheet.getColumn(3 + n).width = 42;
+  sheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 4 }];
+}
+
+function titleBlock(sheet, title, n) {
+  const meta = state.meta;
+  sheet.getCell('A1').value = meta.company;
+  sheet.getCell('A1').font = { name: 'Calibri', size: 14, bold: true };
+  sheet.getCell('A2').value = `${meta.currency || 'currency n/d'}  |  ${meta.units}  |  source: ${meta.source}`;
+  sheet.getCell('A2').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF595959' } };
+  sheet.getCell('A3').value = title;
+  sheet.getCell('A3').font = { name: 'Calibri', size: 10, bold: true };
+
+  const header = sheet.getRow(4);
+  header.getCell(1).value = '';
+  state.periods.forEach((p, i) => {
+    const cell = header.getCell(2 + i);
+    cell.value = p;
+    cell.alignment = { horizontal: 'right' };
+  });
+  header.getCell(2 + n).value = 'Page';
+  header.getCell(3 + n).value = 'As reported';
+  for (let c = 1; c <= n + 2; c++) {
+    header.getCell(c).font = { name: 'Calibri', size: 10, bold: true };
+    header.getCell(c).fill = HEADER_FILL;
+  }
+}
+
+function numberFormatFor(key) {
+  if (PER_SHARE_KEYS.has(key)) return FMT_PS;
+  if (SHARE_COUNT_KEYS.has(key)) return '#,##0;(#,##0);-';
+  return FMT_NUM;
+}
+
+function addStatementSheet(book, statement) {
+  const n = state.periods.length;
+  const sheet = book.addWorksheet(STATEMENT_TITLES[statement]);
+  titleBlock(sheet, STATEMENT_TITLES[statement], n);
+  let r = 5;
+
+  for (const [kind, key, label] of SCHEMA[statement]) {
+    const row = sheet.getRow(r++);
+    row.getCell(1).value = label;
+    row.getCell(1).font = { name: 'Calibri', size: 10, bold: kind !== 'item' };
+    if (kind === 'head') { row.getCell(1).fill = HEADER_FILL; continue; }
+
+    if (kind === 'check') {
+      for (let i = 0; i < n; i++) {
+        const diff = bsCheck(i);
+        const assets = val('total_assets', i);
+        const cell = row.getCell(2 + i);
+        cell.value = diff;
+        cell.numFmt = FMT_NUM;
+        cell.font = { name: 'Calibri', size: 10, bold: true };
+        if (diff !== null && assets && Math.abs(diff) / Math.abs(assets) > 0.005) {
+          cell.fill = ALERT_FILL;
+          cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF9C0006' } };
+          row.getCell(1).fill = ALERT_FILL;
+        }
+      }
+      row.getCell(3 + n).value = 'computed';
+      continue;
+    }
+
+    for (let i = 0; i < n; i++) {
+      const cell = row.getCell(2 + i);
+      const v = val(key, i);
+      if (v !== null) cell.value = v;
+      cell.numFmt = numberFormatFor(key);
+      cell.font = { name: 'Calibri', size: 10, bold: kind === 'sub' };
+      cell.alignment = { horizontal: 'right' };
+    }
+    if (state.provenance[key]) row.getCell(2 + n).value = 'p.' + state.provenance[key];
+    if (state.labels[key]) row.getCell(3 + n).value = state.labels[key];
+    row.getCell(2 + n).font = { name: 'Calibri', size: 9, color: { argb: 'FF7F7F7F' } };
+    row.getCell(3 + n).font = { name: 'Calibri', size: 9, color: { argb: 'FF7F7F7F' } };
+  }
+  styleSheet(sheet, n);
+}
+
+function addValuationSheet(book) {
+  const v = computeValuation();
+  const { dcf } = v;
+  const sheet = book.addWorksheet('Valuation');
+  const meta = state.meta;
+  const ccy = meta.currency || '';
+  const font = (extra) => ({ name: 'Calibri', size: 10, ...extra });
+  const numFmt = kind => kind === 'pct' ? FMT_PCT : kind === 'x' ? FMT_X : kind === 'ps' ? FMT_PS : FMT_NUM;
+
+  sheet.getCell('A1').value = meta.company;
+  sheet.getCell('A1').font = { name: 'Calibri', size: 14, bold: true };
+  sheet.getCell('A2').value = `${ccy || 'currency n/d'}  |  ${meta.units}  |  valuation on ${state.periods[0] || 'latest period'}`;
+  sheet.getCell('A2').font = font({ italic: true, color: { argb: 'FF595959' } });
+  sheet.getColumn(1).width = 42;
+  for (let c = 2; c <= 7; c++) sheet.getColumn(c).width = 14;
+
+  let r = 4;
+  const heading = text => {
+    const cell = sheet.getRow(r++).getCell(1);
+    cell.value = text;
+    cell.font = font({ bold: true });
+    cell.fill = HEADER_FILL;
+  };
+  const put = (label, value, kind, bold) => {
+    const row = sheet.getRow(r++);
+    row.getCell(1).value = label;
+    row.getCell(1).font = font({ bold });
+    const cell = row.getCell(2);
+    if (value !== null && value !== undefined && !isNaN(value)) cell.value = value;
+    cell.numFmt = numFmt(kind);
+    cell.font = font({ bold });
+  };
+
+  heading('Inputs');
+  put(`Share price (${ccy})`, v.x.price, 'ps');
+  put('Diluted shares (m)', v.x.sharesM, 'num');
+  put('Risk-free rate', v.x.rf, 'pct');
+  put('Beta', v.x.beta, 'ps');
+  put('Equity risk premium', v.x.erp, 'pct');
+  put('Cost of equity (CAPM)', v.ke, 'pct', true);
+  put('Pre-tax cost of debt', v.x.kd, 'pct');
+  put('Tax rate', v.x.tax, 'pct');
+  put('After-tax cost of debt', v.kdAfterTax, 'pct');
+  put(v.x.wacc != null ? 'WACC (override)' : 'WACC', v.wacc, 'pct', true);
+  put('Revenue growth, year 1', v.x.growth, 'pct');
+  put(`FCF margin, year ${DCF_YEARS}`, v.x.margin, 'pct');
+  put('Terminal growth', v.x.terminal, 'pct');
+  r++;
+
+  heading(`Trading multiples (${state.periods[0] || 'latest'})`);
+  for (const [label, value, kind] of valuationMultiples(v)) put(label, value, kind);
+  r++;
+
+  heading('Discounted cash flow');
+  if (dcf.error) {
+    sheet.getRow(r++).getCell(1).value = `Not run: ${dcf.error}`;
+  } else {
+    const header = sheet.getRow(r++);
+    dcf.years.forEach((y, i) => {
+      const cell = header.getCell(2 + i);
+      cell.value = forecastLabel(y.t);
+      cell.font = font({ bold: true });
+      cell.alignment = { horizontal: 'right' };
+    });
+    const line = (label, pick, kind) => {
+      const row = sheet.getRow(r++);
+      row.getCell(1).value = label;
+      row.getCell(1).font = font();
+      dcf.years.forEach((y, i) => {
+        const cell = row.getCell(2 + i);
+        cell.value = pick(y);
+        cell.numFmt = numFmt(kind);
+        cell.font = font();
+      });
+    };
+    line('Revenue growth', y => y.growth, 'pct');
+    line('Revenue', y => y.revenue, 'num');
+    line('FCF margin', y => y.margin, 'pct');
+    line('Free cash flow', y => y.fcf, 'num');
+    line('Discount factor', y => y.factor, 'ps');
+    line('PV of FCF', y => y.pv, 'num');
+    r++;
+    put('Sum of PV of FCF', dcf.pvSum, 'num');
+    put('Terminal value', dcf.tv, 'num');
+    put('PV of terminal value', dcf.pvTv, 'num');
+    put('Enterprise value', dcf.ev, 'num', true);
+    put('Net cash / (net debt) less minority', -(v.netDebt + v.minority), 'num');
+    put('Equity value', dcf.equity, 'num', true);
+    put('Terminal value share of EV', dcf.tvShare, 'pct');
+    put(`Value per share (${ccy})`, dcf.perShare, 'ps', true);
+    put('Upside / (downside) to share price', v.upside, 'pct', true);
+    r++;
+
+    const s = sensitivityGrid(v);
+    heading(`Sensitivity: ${s.perShare ? 'value per share' : 'equity value'} (WACC down, terminal growth across)`);
+    const head = sheet.getRow(r++);
+    s.gs.forEach((g, c) => {
+      const cell = head.getCell(2 + c);
+      cell.value = g;
+      cell.numFmt = FMT_PCT;
+      cell.font = font({ bold: true });
+    });
+    s.waccs.forEach((w, i) => {
+      const row = sheet.getRow(r++);
+      row.getCell(1).value = w;
+      row.getCell(1).numFmt = FMT_PCT;
+      row.getCell(1).font = font({ bold: true });
+      row.getCell(1).alignment = { horizontal: 'right' };
+      s.cells[i].forEach((value, c) => {
+        const cell = row.getCell(2 + c);
+        if (value !== null) cell.value = value;
+        cell.numFmt = s.perShare ? FMT_PS : FMT_NUM;
+        const base = SENS_WACC[i] === 0 && SENS_G[c] === 0;
+        cell.font = font({ bold: base });
+        if (base) cell.fill = HEADER_FILL;
+      });
+    });
+  }
+  r++;
+  const note = sheet.getRow(r).getCell(1);
+  note.value = 'Statement figures in the filing\'s units; share price per share. FCF = operating cash '
+    + 'flow less all-in capex. Net debt includes lease liabilities. Values, not formulas: rerun the '
+    + 'tool to change inputs.';
+  note.font = font({ size: 9, italic: true, color: { argb: 'FF7F7F7F' } });
+}
+
+async function exportWorkbook() {
+  const n = state.periods.length;
+  const book = new ExcelJS.Workbook();
+  book.creator = 'Equity Research Tool';
+
+  /* --- Summary --- */
+  const summary = book.addWorksheet('Summary');
+  titleBlock(summary, 'Summary', n);
+  let r = 5;
+  const metrics = [
+    ['Revenue', i => derived(i).revenue, FMT_NUM],
+    ['Gross margin', i => div(val('gross_profit', i), derived(i).revenue), FMT_PCT],
+    ['EBITDA', i => derived(i).ebitda, FMT_NUM],
+    ['EBITDA margin', i => div(derived(i).ebitda, derived(i).revenue), FMT_PCT],
+    ['NPAT', i => derived(i).npat, FMT_NUM],
+    ['Operating cash flow', i => derived(i).ocf, FMT_NUM],
+    ['Capex (all-in)', i => derived(i).capex, FMT_NUM],
+    ['Free cash flow', i => derived(i).fcf, FMT_NUM],
+    ['FCF margin', i => div(derived(i).fcf, derived(i).revenue), FMT_PCT],
+    ['Net debt', i => derived(i).netDebt, FMT_NUM],
+    ['Net debt / EBITDA', i => { const d = derived(i); return (d.ebitda > 0) ? div(d.netDebt, d.ebitda) : null; }, FMT_X]
+  ];
+  for (const [label, fn, format] of metrics) {
+    const row = summary.getRow(r++);
+    row.getCell(1).value = label;
+    row.getCell(1).font = { name: 'Calibri', size: 10, bold: true };
+    for (let i = 0; i < n; i++) {
+      const cell = row.getCell(2 + i);
+      const v = fn(i);
+      if (v !== null && v !== undefined && !isNaN(v)) cell.value = v;
+      cell.numFmt = format;
+      cell.font = { name: 'Calibri', size: 10 };
+    }
+  }
+  r++;
+  const note = summary.getRow(r++);
+  note.getCell(1).value =
+    'Figures are as printed in the filing (see Units above). Blank means the item was not found '
+    + 'or not disclosed -- it is never a zero. Capex is all-in: PP&E plus capitalised development '
+    + 'and contract costs.';
+  note.getCell(1).font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF7F7F7F' } };
+  styleSheet(summary, n);
+
+  /* --- Statements --- */
+  for (const statement of Object.keys(SCHEMA)) addStatementSheet(book, statement);
+
+  /* --- Ratios --- */
+  const ratios = book.addWorksheet('Ratios');
+  titleBlock(ratios, 'Ratios', n);
+  r = 5;
+  for (const section of buildRatios()) {
+    const head = ratios.getRow(r++);
+    head.getCell(1).value = section.title;
+    head.getCell(1).font = { name: 'Calibri', size: 10, bold: true };
+    head.getCell(1).fill = HEADER_FILL;
+    for (const item of section.rows) {
+      const row = ratios.getRow(r++);
+      row.getCell(1).value = item.label;
+      row.getCell(1).font = { name: 'Calibri', size: 10 };
+      item.values.forEach((v, i) => {
+        const cell = row.getCell(2 + i);
+        if (v !== null && v !== undefined && !isNaN(v)) cell.value = v;
+        cell.numFmt = item.fmt === 'pct' ? FMT_PCT : item.fmt === 'x' ? FMT_X
+          : item.fmt === 'ps' ? FMT_PS : FMT_NUM;
+        cell.font = { name: 'Calibri', size: 10 };
+        cell.alignment = { horizontal: 'right' };
+      });
+    }
+    r++;
+  }
+  styleSheet(ratios, n);
+
+  addValuationSheet(book);
+
+  /* --- Flags --- */
+  const flagSheet = book.addWorksheet('Flags');
+  flagSheet.getCell('A1').value = 'Checks & flags';
+  flagSheet.getCell('A1').font = { name: 'Calibri', size: 14, bold: true };
+  ['Severity', 'Flag', 'What it means'].forEach((h, i) => {
+    const cell = flagSheet.getRow(3).getCell(i + 1);
+    cell.value = h;
+    cell.font = { name: 'Calibri', size: 10, bold: true };
+    cell.fill = HEADER_FILL;
+  });
+  flagSheet.getColumn(1).width = 12;
+  flagSheet.getColumn(2).width = 46;
+  flagSheet.getColumn(3).width = 110;
+  r = 4;
+  for (const flag of buildFlags()) {
+    const row = flagSheet.getRow(r++);
+    row.getCell(1).value = flag.severity.toUpperCase();
+    row.getCell(2).value = flag.name;
+    row.getCell(3).value = flag.text;
+    row.getCell(3).alignment = { wrapText: true, vertical: 'top' };
+    for (let c = 1; c <= 3; c++) row.getCell(c).font = { name: 'Calibri', size: 10 };
+    if (flag.severity === 'alert') row.getCell(1).fill = ALERT_FILL;
+    row.height = 30;
+  }
+  flagSheet.views = [{ state: 'frozen', ySplit: 3 }];
+
+  /* --- Source Map --- */
+  const map = book.addWorksheet('Source Map');
+  ['Line item', 'Key', 'Page', 'As reported in the filing', ...state.periods]
+    .forEach((h, i) => {
+      const cell = map.getRow(1).getCell(i + 1);
+      cell.value = h;
+      cell.font = { name: 'Calibri', size: 10, bold: true };
+      cell.fill = HEADER_FILL;
+    });
+  map.getColumn(1).width = 40; map.getColumn(2).width = 28;
+  map.getColumn(3).width = 8;  map.getColumn(4).width = 46;
+  r = 2;
+  for (const [statement, rows] of Object.entries(SCHEMA)) {
+    for (const [kind, key, label] of rows) {
+      if (!key || kind === 'check') continue;
+      const row = map.getRow(r++);
+      row.getCell(1).value = label;
+      row.getCell(2).value = key;
+      row.getCell(3).value = state.provenance[key] ? 'p.' + state.provenance[key] : 'not found';
+      row.getCell(4).value = state.labels[key] || '';
+      for (let i = 0; i < n; i++) {
+        const cell = row.getCell(5 + i);
+        const v = val(key, i);
+        if (v !== null) cell.value = v;
+        cell.numFmt = numberFormatFor(key);
+      }
+      for (let c = 1; c <= 4 + n; c++) row.getCell(c).font = { name: 'Calibri', size: 10 };
+    }
+  }
+  map.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const buffer = await book.xlsx.writeBuffer();
+  const safe = (state.meta.company || 'company').replace(/[^\w\- ]+/g, '').trim().slice(0, 50);
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${safe || 'analyst'}_model.xlsx`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  log(`Workbook downloaded: ${link.download}`, 'ok');
+}
+
+/* ---------- wiring ---------- */
+const drop = el('drop');
+drop.addEventListener('click', () => el('file').click());
+el('file').addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
+['dragenter', 'dragover'].forEach(type =>
+  drop.addEventListener(type, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(type =>
+  drop.addEventListener(type, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => {
+  const files = [...e.dataTransfer.files].filter(f => /\.pdf$/i.test(f.name));
+  if (!files.length) { log('That was not a PDF.', 'bad'); return; }
+  handleFiles(files);
+});
+el('export').addEventListener('click', () => exportWorkbook().catch(err => {
+  log(`Export failed: ${err.message}`, 'bad');
+  console.error(err);
+}));
+el('saveSession').addEventListener('click', downloadSession);
+el('loadSessionBtn').addEventListener('click', () => el('loadSession').click());
+el('loadSession').addEventListener('change', e => {
+  if (e.target.files.length) loadSessionFile(e.target.files[0]);
+});
+el('reset').addEventListener('click', () => {
+  // Clear the autosave too, or "start over" would offer to restore the work
+  // the user just asked to discard.
+  try { localStorage.removeItem(SESSION_KEY); } catch {}
+  location.reload();
+});
+el('toggleBlank').addEventListener('click', () => {
+  state.hideBlank = !state.hideBlank;
+  el('toggleBlank').textContent = state.hideBlank ? 'Show empty rows' : 'Hide empty rows';
+  renderReview();
+});
+
+/* Library readiness. The pdf.js worker is cross-origin from a file:// page,
+   so fetch it and hand pdf.js a same-origin blob URL; if that is blocked,
+   pdf.js falls back to running on the main thread (slower but correct). */
+(async function initLibraries() {
+  const note = el('libnote');
+  if (typeof pdfjsLib === 'undefined' || typeof ExcelJS === 'undefined') {
+    note.innerHTML = '<b style="color:#e06c6c">Could not load the PDF/Excel libraries.</b> '
+      + 'They come from a CDN, so this page needs an internet connection the first time. '
+      + 'Check your connection and reload.';
+    return;
+  }
+  const workerUrl = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  try {
+    const source = await fetch(workerUrl).then(res => res.text());
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      URL.createObjectURL(new Blob([source], { type: 'application/javascript' }));
+  } catch {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+  }
+  note.textContent = 'Ready. Nothing leaves this machine — the PDF is parsed in the browser.';
+  note.style.color = '#6cc77f';
+
+  offerRestore();
+})();
+
+/* If the last session is still in this browser, offer it rather than
+   restoring silently -- the user may be starting on a different company, and
+   quietly repopulating the table with another filing's figures would be worse
+   than losing them. */
+function offerRestore() {
+  const saved = storedSession();
+  if (!saved || !saved.periods || !saved.periods.length) return;
+
+  const when = saved.savedAt ? new Date(saved.savedAt) : null;
+  const stamp = when
+    ? when.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    : 'an earlier session';
+  const count = Object.keys(saved.values || {}).length;
+
+  const banner = document.createElement('div');
+  banner.className = 'panel';
+  banner.style.cssText = 'margin-top:12px;border-color:#4ec9b0';
+  banner.innerHTML =
+    `<div class="row"><div style="flex:1">`
+    + `<b>Unsaved work from last time</b><br>`
+    + `<span class="hint">${escapeHtml(saved.meta?.company || 'A filing')} — `
+    + `${count} line items, saved ${escapeHtml(stamp)}.</span></div></div>`;
+
+  const restore = document.createElement('button');
+  restore.textContent = 'Restore it';
+  const discard = document.createElement('button');
+  discard.className = 'ghost';
+  discard.textContent = 'Discard';
+
+  const row = banner.querySelector('.row');
+  row.appendChild(restore);
+  row.appendChild(discard);
+
+  restore.addEventListener('click', () => {
+    try {
+      applySession(saved);
+    } catch (err) {
+      log(`Could not restore: ${err.message}`, 'bad');
+      banner.remove();
+      return;
+    }
+    banner.remove();
+    renderAll();
+    log(`Restored ${count} line items from ${stamp}.`, 'ok');
+  });
+  discard.addEventListener('click', () => {
+    try { localStorage.removeItem(SESSION_KEY); } catch {}
+    banner.remove();
+  });
+
+  el('drop').parentElement.appendChild(banner);
+}
+</script>
+</body>
+</html>
